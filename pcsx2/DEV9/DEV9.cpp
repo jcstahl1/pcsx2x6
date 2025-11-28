@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include "DEV9.h"
+#include "ACDEV.h"
 #include "Config.h"
 #include "smap.h"
 
@@ -935,26 +936,14 @@ u16 DEV9read16(u32 addr)
 	}
 }
 
+
 u32 DEV9read32(u32 addr)
 {
-	if (!EmuConfig.DEV9.EthEnable && !EmuConfig.DEV9.HddEnable)
-		return 0;
-
-	if (addr >= ATA_DEV9_HDD_BASE && addr < ATA_DEV9_HDD_END)
+	if (addr >= ACDEV_BASE && addr < ACDEV_ROMDIR_POKE_END)
 	{
-		Console.Error("DEV9: ATA does not support 32bit reads %lx", addr);
+		// rom0:ACDEV is making ROMDRV look for a romdir filesystem here, this is useless, only arcade TOOLs had this
 		return 0;
 	}
-	if (addr >= SMAP_REGBASE && addr < FLASH_REGBASE)
-	{
-		//smap
-		return smap_read32(addr);
-	}
-	if ((addr >= FLASH_REGBASE) && (addr < (FLASH_REGBASE + FLASH_REGSIZE)))
-	{
-		return static_cast<u32>(FLASHread32(addr, 4));
-	}
-
 	const u32 hard = dev9Ru32(addr);
 	Console.Error("DEV9: Unknown 32bit read at address %lx value %x", addr, hard);
 	return hard;
