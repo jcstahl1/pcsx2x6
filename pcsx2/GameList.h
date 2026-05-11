@@ -29,6 +29,7 @@ namespace GameList
 		PS2Disc,
 		PS1Disc,
 		ELF,
+		ARCADE,
 		Invalid,
 		Count
 	};
@@ -65,6 +66,8 @@ namespace GameList
 		PAL_SW,
 		PAL_SWI,
 		PAL_UK,
+		SYSTEM246,
+		SYSTEM256,
 		Count
 	};
 
