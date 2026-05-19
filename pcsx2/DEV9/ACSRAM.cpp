@@ -82,6 +82,16 @@ int ACSRAM::WriteFile() {
 void ACSRAM::Clear(u8 fillerbyte) {
     std::memset(ACSRAM::buffer, fillerbyte, sizeof(ACSRAM::buffer));
 }
+
+u8 ACSRAM::Read8(u32 addr) {
+    u32 T = GET_SRAM_OFF(addr);
+    if (T < ACSRAM_MAX_SIZE) {
+        //Console.WriteLn(Color_StrongCyan, "%-16s %04X:  %02X", __FUNCTION__, T, ACSRAM::buffer[T]);
+        return ACSRAM::buffer[T];
+    } else OOB_REPORT(T);
+    return 0;
+}
+
 u16 ACSRAM::Read16(u32 addr) {
     u32 T = GET_SRAM_OFF(addr);
     if (T < ACSRAM_MAX_SIZE) {
