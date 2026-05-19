@@ -176,7 +176,6 @@ u16 iopMemRead16(u32 mem)
 		return ACRAM::Read16(mem);
 	} else if ((t & 0xFF00) == ACATA_RANGE) {
 		V = ACATA::read16(mem);
-    	Console.Error("%-16s %08X:  %04X", "ACATA::read16", mem, V);
 		return V;
 	}
 	else
@@ -353,7 +352,6 @@ void iopMemWrite16(u32 mem, u16 value)
 		}
 	
 	} else if ((t & 0xFF00) == ACATA_RANGE) {
-    	Console.Error("%-16s %08X = %04X", "ACATA::write16", mem, value);
 		ACATA::write16(mem, value);
 	} else if (t == ACJV_RANGE) {
 		if (ACJV::enabled) {

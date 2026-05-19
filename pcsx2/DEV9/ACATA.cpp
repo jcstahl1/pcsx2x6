@@ -45,10 +45,9 @@ u16 ACATA::read16(u32 addr) {
                 R_STATUS |= ATA_STAT_BUSY;
         }
         return R_STATUS;
-    break;
     
     default:
-        // TODO: move the error line here after development stage finished
+    	Console.Error("%-16s %08X: ", "ACATA::read16", addr);
         break;
     }
     return 0;
@@ -62,12 +61,12 @@ void ACATA::write16(u32 addr, u16 val) {
     u16 V = val;
     switch (addr) {
     case ACATA_R_NSECTOR: R_NSECTOR = val; break;
-    case ACATA_R_SECTOR:  R_SECTOR = val; break;
+    case ACATA_R_SECTOR:  R_SECTOR  = val; break;
     case ACATA_R_FEATURE: R_FEATURE = val; break;
     case ACATA_R_CONTROL: R_CONTROL = val; break;
-    case ACATA_R_LCYL:    R_LCYL = val; break;
-    case ACATA_R_HCYL:    R_HCYL = val; break;
-    case ACATA_R_SELECT:  R_SELECT = val; break;
+    case ACATA_R_LCYL:    R_LCYL    = val; break;
+    case ACATA_R_HCYL:    R_HCYL    = val; break;
+    case ACATA_R_SELECT:  R_SELECT  = val; break;
     case ACATA_R_COMMAND:
         ACATA::handle_cmd(val); return;
     
@@ -76,7 +75,7 @@ void ACATA::write16(u32 addr, u16 val) {
     break;
 
     default:
-        // TODO: move the error line here after development stage finished
+    	Console.Error("%-16s %08X = %04X", "ACATA::write16", addr, val);
         break;
     }
 }
@@ -137,7 +136,7 @@ void ACATA::handle_cmd(u16 val) {
     case ATA_C_PACKET:
         ACATA::cmd_handled = val;
         ACATA::cmd_handledc = 0;
-        Console.Warning("ATA_C_PACKET: isDMA:%d", ACATA_ISDMA!=0);
+        if (!ACATA_ISDMA) Console.Error("ATA_C_PACKET: over PIO recieved");
         R_STATUS |= ATA_STAT_DRQ;
         CLRB(R_STATUS, ATA_STAT_BUSY);
         CLRB(R_STATUS_ALT, ATA_STAT_ERR); // when packet is sent, ACCDVD fails if this bit is set or timeout consumed
