@@ -30,7 +30,6 @@ void ACCORE::Write16(u32 mem, u16 value) {
 		case 0x1241510C:  Console.Warning("ACCORE::INTR  DISABLE_ACATA_INTR"); break;
 		case 0x1241511C:  Console.Warning("ACCORE::INTR  DISABLE_ACUART_INTR"); break;
 		// ACFPGA UPLOAD MMIO ///TODOx6: move this handling to ACFPGA.cpp
-		case 0x12416012: // set to 0 after ACFPGALD uploads bitstream and during startup of ACRAM
 		case 0x12416014:
 		case 0x12416018:
 		case 0x12416016:
