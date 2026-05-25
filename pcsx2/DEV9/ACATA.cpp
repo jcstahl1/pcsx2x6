@@ -110,6 +110,11 @@ u16 ACATA::handle_dataR(u32 addr) { // PIO read at R_DATA
             return ATA_R_IDENTIFY_PACKET_DEVICE[ACATA::cmd_handledc++];
         } else {ACATA::cmd_handled = -1; CLRB(R_STATUS, ATA_STAT_DRQ);}
         break;
+    case ATA_C_IDENTIFY_DEVICE:
+        if (ACATA::cmd_handledc < 256) {
+            return ATA_R_IDENTIFY_DEVICE[ACATA::cmd_handledc++];
+        } else {ACATA::cmd_handled = -1; CLRB(R_STATUS, ATA_STAT_DRQ);}
+        break;
     case ATA_C_SET_FEATURES:
     break;
     case ATA_C_PACKET:
@@ -130,6 +135,12 @@ void ACATA::handle_cmd(u16 val) {
         break;
     case ATA_C_IDENTIFY_PACKET_DEVICE:
         Console.Warning("ATA_C_IDENTIFY_PACKET_DEVICE");
+        ACATA::cmd_handled = val;
+        ACATA::cmd_handledc = 0;
+        R_STATUS |= ATA_STAT_DRQ;
+    break;
+    case ATA_C_IDENTIFY_DEVICE:
+        Console.Warning("ATA_C_IDENTIFY_DEVICE");
         ACATA::cmd_handled = val;
         ACATA::cmd_handledc = 0;
         R_STATUS |= ATA_STAT_DRQ;
