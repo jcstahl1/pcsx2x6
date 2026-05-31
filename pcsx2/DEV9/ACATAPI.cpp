@@ -190,8 +190,8 @@ void ACATAPI::handle_cmd(atapi_packet_t P) {
                 atapi_complete_nodata();
                 break;
             }
-            off_t offset = (off_t)transf_lba * ACATAPI::CONSTANTS::DVD_SECTORSIZE;
-            fseeko(ACATA::TH::IMAGE, offset, SEEK_SET);
+            s64 offset = (s64)transf_lba * ACATAPI::CONSTANTS::DVD_SECTORSIZE;
+            FileSystem::FSeek64(ACATA::TH::IMAGE, offset, SEEK_SET);
             size_t rd = fread(atapi_pio_buf, 1, total, ACATA::TH::IMAGE);
             if (rd == total) {
                 atapi_pio_setup(total);

@@ -33,9 +33,8 @@ static void ata_build_identify()
 	ata_identify_buf[49] = 0x0300;
 	ata_identify_buf[53] = 0x0007;
 	if (ACATA::TH::IMAGE) {
-		struct stat st;
-		if (fstat(fileno(ACATA::TH::IMAGE), &st) == 0 && st.st_size > 0) {
-			ata_total_sectors = (u32)(st.st_size / 512);
+		if (ACATA::TH::IMAGESIZE > 0) {
+			ata_total_sectors = (u32)(ACATA::TH::IMAGESIZE / ATA_SECTORSIZE);
 			ata_identify_buf[60] = ata_total_sectors & 0xFFFF;
 			ata_identify_buf[61] = (ata_total_sectors >> 16) & 0xFFFF;
 		}
