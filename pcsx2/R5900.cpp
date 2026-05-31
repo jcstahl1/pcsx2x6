@@ -604,13 +604,13 @@ void eeloadHook()
 	int argc = cpuRegs.GPR.n.a0.SD[0];
 	if (argc) // calls to EELOAD *after* the first one during the startup process will come here
 	{
-#if DEBUG_LAUNCHARG
+		
 		Console.WriteLn("eeloadHook: EELOAD was called with %d arguments according to $a0 and %d according to vargs block:",
 			argc, memRead32(cpuRegs.GPR.n.a1.UD[0] - 4));
 		for (int a = 0; a < argc; a++)
 			Console.WriteLn("argv[%d]: %p -> %p -> '%s'", a, cpuRegs.GPR.n.a1.UL[0] + (a * 4),
 				memRead32(cpuRegs.GPR.n.a1.UD[0] + (a * 4)), (char *)PSM(memRead32(cpuRegs.GPR.n.a1.UD[0] + (a * 4))));
-#endif
+			
 		if (argc > 1)
 			elfname = (char*)PSM(memRead32(cpuRegs.GPR.n.a1.UD[0] + 4)); // argv[1] in OSDSYS's invocation "EELOAD <game ELF>"
 		if (elfname.substr(0, 4) == "ac0:") {
@@ -638,9 +638,9 @@ void eeloadHook()
 			}
 			strcpy((char *)PSM(arg_ptr + arg_len + 1), EmuConfig.CurrentGameArgs.c_str());
 			u32 first_arg_ptr = memRead32(cpuRegs.GPR.n.a1.UD[0]);
-#if DEBUG_LAUNCHARG
+
 			Console.WriteLn("eeloadHook: arg block is '%s'.", (char *)PSM(first_arg_ptr));
-#endif
+
 			argc = ParseArgumentString(first_arg_ptr);
 
 			// Write pointer to next slot in $a1
