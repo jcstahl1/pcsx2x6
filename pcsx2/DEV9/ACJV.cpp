@@ -107,6 +107,7 @@ static constexpr const std::array<InputBindingInfo, 2> s_jvs_coin_bindings = {{
 }};
 
 static u16 s_dip_switch_state = DEFAULT_DIP_SWITCH_STATE;
+static bool s_suppress_daemon = true;
 u32 lastRead = 0x0;
 
 std::span<const ACJV::DIPSwitchInfo> ACJV::GetDIPSwitches()
@@ -132,6 +133,11 @@ const ACJV::DIPSwitchInfo& ACJV::GetMonitorSyncFrequencyDIPSwitch()
 const ACJV::DIPSwitchInfo& ACJV::GetVideoSyncSplitDIPSwitch()
 {
 	return s_dip_switch_info[3];
+}
+
+bool ACJV::IsSuppressDaemonEnabled()
+{
+	return s_suppress_daemon;
 }
 
 std::span<const InputBindingInfo> ACJV::GetDIPSwitchBindings()
@@ -190,6 +196,7 @@ void ACJV::LoadConfig(const SettingsInterface& si)
 			state |= s_dip_switch_masks[i];
 	}
 	s_dip_switch_state = state;
+	s_suppress_daemon = si.GetBoolValue(CONFIG_SECTION, "SuppressDaemon", true);
 }
 
 void ACJV::CopyConfiguration(SettingsInterface* dest_si, const SettingsInterface& src_si, bool copy_settings, bool copy_bindings)
@@ -198,6 +205,7 @@ void ACJV::CopyConfiguration(SettingsInterface* dest_si, const SettingsInterface
 	{
 		for (const DIPSwitchInfo& dip_switch : s_dip_switch_info)
 			dest_si->CopyBoolValue(src_si, CONFIG_SECTION, dip_switch.name);
+		dest_si->CopyBoolValue(src_si, CONFIG_SECTION, "SuppressDaemon");
 	}
 
 	if (copy_bindings)
@@ -218,6 +226,7 @@ void ACJV::SetDefaultConfiguration(SettingsInterface& si)
 	si.ClearSection(CONFIG_SECTION);
 	for (const DIPSwitchInfo& dip_switch : s_dip_switch_info)
 		si.SetBoolValue(CONFIG_SECTION, dip_switch.name, dip_switch.default_value);
+	si.SetBoolValue(CONFIG_SECTION, "SuppressDaemon", true);
 
 	si.SetStringValue(CONFIG_SECTION, "P1_Up",      "Keyboard/Up");
 	si.SetStringValue(CONFIG_SECTION, "P1_Down",    "Keyboard/Down");

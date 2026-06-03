@@ -172,6 +172,22 @@
         </widget>
        </item>
        <item>
+        <widget class="QGroupBox" name="extraGroup">
+         <property name="title">
+          <string>Extra</string>
+         </property>
+         <layout class="QVBoxLayout" name="extraLayout">
+          <item>
+           <widget class="QCheckBox" name="suppressDaemon">
+            <property name="text">
+             <string>Suppress DAEMON security thread</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
         <spacer name="verticalSpacer">
          <property name="orientation">
           <enum>Qt::Orientation::Vertical</enum>

@@ -127,7 +127,15 @@ void Sio2::SetCtrl(u32 value)
 		const u32 baudDiv = useBaud1 ? (send1 >> 24) : ((send1 >> 16) & 0xFF);
 		const u32 interBytePer = (send2 >> 16) & 0xFF;
 		const u32 cyclesPerByte = 8 * (baudDiv + 1) + interBytePer;
-		const u32 delay = static_cast<u32>(transferBytes) * cyclesPerByte + 64;
+
+		// Compute byte count from queued command lengths (more accurate than DMA transfer size)
+		u32 serialBytes = 0;
+		for (size_t i = 0; i < queuePosition; i++)
+			serialBytes += (CmdQueue[i] >> 8) & Sio2Cmd::COMMAND_LENGTH_MASK;
+		if (serialBytes == 0)
+			serialBytes = static_cast<u32>(transferBytes);
+
+		const u32 delay = serialBytes * cyclesPerByte + 64;
 		PSX_INT(IopEvt_SIO2, delay);
 	}
 }
@@ -286,13 +294,15 @@ void Sio2::Memcard()
 		return;
 	}
 
+	const u8 commandByte = g_Sio2FifoIn.front();
+
 	SetCmdStat(mcd->IsPresent() ? CmdStat::CONNECTED : CmdStat::DISCONNECTED);
 
-	const u8 commandByte = g_Sio2FifoIn.front();
 	g_Sio2FifoIn.pop_front();
 	const u8 responseByte = mcd->IsPresent() ? 0x00 : 0xff;
 	g_Sio2FifoOut.push_back(responseByte);
 	g_Sio2FifoOut.push_back(responseByte);
+
 	u8 ps1Input = 0;
 	u8 ps1Output = 0;
 
@@ -300,6 +310,12 @@ void Sio2::Memcard()
 	{
 		case MemcardCommand::PROBE:
 			g_MemoryCardProtocol.Probe();
+			break;
+		case MemcardCommand::GET_TERMINATOR:
+			g_MemoryCardProtocol.GetTerminator();
+			break;
+		case MemcardCommand::SET_TERMINATOR:
+			g_MemoryCardProtocol.SetTerminator();
 			break;
 		case MemcardCommand::UNKNOWN_WRITE_DELETE_END:
 			g_MemoryCardProtocol.UnknownWriteDeleteEnd();
@@ -311,12 +327,6 @@ void Sio2::Memcard()
 			break;
 		case MemcardCommand::GET_SPECS:
 			g_MemoryCardProtocol.GetSpecs();
-			break;
-		case MemcardCommand::SET_TERMINATOR:
-			g_MemoryCardProtocol.SetTerminator();
-			break;
-		case MemcardCommand::GET_TERMINATOR:
-			g_MemoryCardProtocol.GetTerminator();
 			break;
 		case MemcardCommand::WRITE_DATA:
 			g_MemoryCardProtocol.WriteData();

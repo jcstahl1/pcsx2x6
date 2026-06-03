@@ -77,6 +77,8 @@ namespace ACJV {
     void LoadConfig(const SettingsInterface& si);
     void CopyConfiguration(SettingsInterface* dest_si, const SettingsInterface& src_si, bool copy_settings = true, bool copy_bindings = true);
     void SetDefaultConfiguration(SettingsInterface& si);
+
+    bool IsSuppressDaemonEnabled();
 }
 
 
