@@ -1310,13 +1310,16 @@ bool VMManager::AutoDetectSource(const std::string& filename, Error* error)
 				}
 
 				std::string card;
+				// Slot 1 (mc0:) = dongle (boot modules only, no save data).
+				// Always overwrite — DONGLEMAN corrupts this file at runtime.
 				if ((card = INI.GetStringValue("data", "dongle", "")) != "") {
 					std::string src = Path::Combine(basedir, card);
 					std::string dst = Path::Combine(EmuFolders::MemoryCards, card);
-					if (FileSystem::FileExists(src.c_str()) && !FileSystem::FileExists(dst.c_str()))
-						FileSystem::CopyFilePath(src.c_str(), dst.c_str(), false);
+					if (FileSystem::FileExists(src.c_str()))
+						FileSystem::CopyFilePath(src.c_str(), dst.c_str(), true);
 					Host::SetBaseStringSettingValue("MemoryCards", "Slot1_Filename", card.c_str());
 				}
+				// Slot 2 (mc1:) = save card (e.g. SC2 conquest). Never overwrite existing saves.
 				if ((card = INI.GetStringValue("data", "card", "")) != "") {
 					std::string src = Path::Combine(basedir, card);
 					std::string dst = Path::Combine(EmuFolders::MemoryCards, card);

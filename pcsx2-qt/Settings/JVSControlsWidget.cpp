@@ -50,6 +50,9 @@ void JVSControlsWidget::bindDIPSwitchWidgets()
 		ACJV::CONFIG_SECTION, video_sync_split.name, video_sync_split.default_value);
 	m_ui.toggleVideoSyncSplit->initialize(m_dialog->getProfileSettingsInterface(),
 		InputBindingInfo::Type::Button, ACJV::CONFIG_SECTION, video_sync_split.toggle_bind_name);
+
+	ControllerSettingWidgetBinder::BindWidgetToInputProfileBool(m_dialog->getProfileSettingsInterface(), m_ui.suppressDaemon,
+		ACJV::CONFIG_SECTION, "SuppressDaemon", true);
 }
 
 #include "moc_JVSControlsWidget.cpp"
