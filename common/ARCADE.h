@@ -6,6 +6,7 @@
  */
 
 #pragma once
+#include <string>
 
 enum ACMEDIATYPE {
     ACUNK = -1, //Unknown
