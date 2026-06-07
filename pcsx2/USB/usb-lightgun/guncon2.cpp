@@ -13,6 +13,7 @@
 #include "USB/qemu-usb/desc.h"
 #include "USB/usb-lightgun/guncon2.h"
 #include "VMManager.h"
+#include "DEV9/ACJV.h"
 
 #include "common/Console.h"
 #include "common/StringUtil.h"
@@ -269,6 +270,23 @@ namespace usb_lightgun
 				{
 					const auto [pos_x, pos_y] = us->CalculatePosition();
 
+					// Forward mouse position to JVS: on-screen = coords, off-screen = (0,0), update sensor bit
+					// TODO: use CalculatePosition() result instead of raw mouse, so Relative Aiming (joystick) works for S246
+					if (ACJV::enabled)
+					{
+						const auto& [mx, my] = InputManager::GetPointerAbsolutePosition(0);
+						float dx, dy;
+						GSTranslateWindowToDisplayCoordinates(mx, my, &dx, &dy);
+						bool on_screen = (dx >= 0.0f && dy >= 0.0f);
+						if (on_screen)
+							ACJV::SetScreenPos(static_cast<u16>((1.0f - dx) * 0xFFFF), static_cast<u16>(dy * 0xFFFF));
+						else
+							ACJV::SetScreenPos(0, 0);
+						const auto& gm = ACJV::GetGunMapping();
+						if (gm.sensor)
+							ACJV::SetButtonState(0, gm.sensor, gm.sensor_active_high ? on_screen : !on_screen);
+					}
+
 					// Time Crisis games do a "calibration" by displaying a black frame for a single frame,
 					// waiting for the gun to report (0, 0), and then computing an offset on the first non-zero
 					// value. So, after the trigger is pulled, we wait for a few frames, then send the (0, 0)
@@ -437,7 +455,7 @@ namespace usb_lightgun
 
 	const char* GunCon2Device::Name() const
 	{
-		return TRANSLATE_NOOP("USB", "GunCon 2");
+		return TRANSLATE_NOOP("USB", "Light Gun");
 	}
 
 	const char* GunCon2Device::TypeName() const
@@ -559,10 +577,50 @@ namespace usb_lightgun
 		if (bind_index < BID_RELATIVE_LEFT)
 		{
 			const u32 bit = 1u << bind_index;
+			const bool was_pressed = (s->button_state & bit) != 0;
 			if (value >= 0.5f)
 				s->button_state |= bit;
 			else
 				s->button_state &= ~bit;
+
+			// Forward GunCon2 USB buttons to JVS per-game mapping
+			if (ACJV::enabled)
+			{
+				const bool pressed = (value >= 0.5f);
+				const u32 player = s->port;
+				switch (bind_index)
+				{
+				// Trigger: P1 uses p1_trigger, P2 uses p2_trigger if defined (Vampire Night 2P)
+				case BID_TRIGGER:
+				{
+					const auto& mapping = ACJV::GetGunMapping();
+					if (player == 0)
+						ACJV::SetButtonState(0, mapping.p1_trigger, pressed);
+					else if (mapping.p2_trigger)
+						ACJV::SetButtonState(0, mapping.p2_trigger, pressed);
+					else
+						ACJV::SetButtonState(player, mapping.p1_trigger, pressed);
+					break;
+				}
+				// Foot pedal (cover/reload system: TC3, TC4, Cobra)
+				case BID_A:       ACJV::SetButtonState(player, ACJV::GetGunMapping().pedal, pressed); break;
+				// Start: P1 uses p1_start, P2 uses p2_start if defined (Vampire Night 2P)
+				case BID_START:
+				{
+					const auto& mapping = ACJV::GetGunMapping();
+					u16 startBit = mapping.p1_start ? mapping.p1_start : JVS_BTN_START;
+					if (player == 0)
+						ACJV::SetButtonState(0, startBit, pressed);
+					else if (mapping.p2_start)
+						ACJV::SetButtonState(0, mapping.p2_start, pressed);
+					else
+						ACJV::SetButtonState(player, startBit, pressed);
+					break;
+				}
+				// Coin insert (rising edge only — prevent double-count from repeated press events)
+				case BID_SELECT:  if (pressed && !was_pressed) ACJV::InsertCoin(player); break;
+				}
+			}
 		}
 		else if (bind_index <= BID_RELATIVE_DOWN)
 		{
@@ -585,15 +643,9 @@ namespace usb_lightgun
 			{"Right", TRANSLATE_NOOP("USB", "D-Pad Right"), nullptr, InputBindingInfo::Type::Button, BID_DPAD_RIGHT,
 				GenericInputBinding::DPadRight},
 			{"Trigger", TRANSLATE_NOOP("USB", "Trigger"), nullptr, InputBindingInfo::Type::Button, BID_TRIGGER, GenericInputBinding::R2},
-			{"ShootOffscreen", TRANSLATE_NOOP("USB", "Shoot Offscreen"), nullptr, InputBindingInfo::Type::Button, BID_SHOOT_OFFSCREEN,
-				GenericInputBinding::R1},
-			{"Recalibrate", TRANSLATE_NOOP("USB", "Calibration Shot"), nullptr, InputBindingInfo::Type::Button, BID_RECALIBRATE,
-				GenericInputBinding::Unknown},
-			{"A", TRANSLATE_NOOP("USB", "A"), nullptr, InputBindingInfo::Type::Button, BID_A, GenericInputBinding::Cross},
-			{"B", TRANSLATE_NOOP("USB", "B"), nullptr, InputBindingInfo::Type::Button, BID_B, GenericInputBinding::Circle},
-			{"C", TRANSLATE_NOOP("USB", "C"), nullptr, InputBindingInfo::Type::Button, BID_C, GenericInputBinding::Triangle},
-			{"Select", TRANSLATE_NOOP("USB", "Select"), nullptr, InputBindingInfo::Type::Button, BID_SELECT, GenericInputBinding::Select},
+			{"A", TRANSLATE_NOOP("USB", "Foot Pedal"), nullptr, InputBindingInfo::Type::Button, BID_A, GenericInputBinding::Cross},
 			{"Start", TRANSLATE_NOOP("USB", "Start"), nullptr, InputBindingInfo::Type::Button, BID_START, GenericInputBinding::Start},
+			{"Select", TRANSLATE_NOOP("USB", "Coins"), nullptr, InputBindingInfo::Type::Button, BID_SELECT, GenericInputBinding::Select},
 			{"RelativeLeft", TRANSLATE_NOOP("USB", "Relative Left"), nullptr, InputBindingInfo::Type::HalfAxis, BID_RELATIVE_LEFT, GenericInputBinding::Unknown},
 			{"RelativeRight", TRANSLATE_NOOP("USB", "Relative Right"), nullptr, InputBindingInfo::Type::HalfAxis, BID_RELATIVE_RIGHT, GenericInputBinding::Unknown},
 			{"RelativeUp", TRANSLATE_NOOP("USB", "Relative Up"), nullptr, InputBindingInfo::Type::HalfAxis, BID_RELATIVE_UP, GenericInputBinding::Unknown},

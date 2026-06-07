@@ -1301,10 +1301,13 @@ bool VMManager::AutoDetectSource(const std::string& filename, Error* error)
 				s_imgname = INI.GetStringValue("data", "mediasrc");
 				s_title = s_serial = INI.GetStringValue("game", "name");
 				s_disc_serial = s_serial = INI.GetStringValue("game", "gameid");
+				ACJV::SetGameId(s_serial); // Adapt JVS input to detected GAMEID
 				std::string platform = INI.GetStringValue("game", "platform", "");
-				s_acgame_sys246 = (platform == "246" || platform == "256");
-				s_acgame_sys256 = (platform == "256");
-				if (s_acgame_sys256)
+				s_acgame_sys246 = (platform == "246" || platform == "256" || platform == "super256");
+				s_acgame_sys256 = (platform == "256" || platform == "super256");
+				if (platform == "super256")
+					PS2CLK = PS2CLK_SS256;
+				else if (s_acgame_sys256)
 					PS2CLK = PS2CLK_S256;
 				if (s_acgame_sys246)
 				{
@@ -1338,6 +1341,21 @@ bool VMManager::AutoDetectSource(const std::string& filename, Error* error)
 				s_elf_override = Path::Combine(basedir, INI.GetStringValue("data", "elf"));
 				EmuConfig.CurrentGameArgs = INI.GetStringValue("data", "args");
 				ACSRAM::filepath = Path::Combine(basedir, INI.GetStringValue("data", "sram", "sram.bin"));
+				std::string jvsmode = INI.GetStringValue("data", "jvsmode", "");
+				if (jvsmode == "lightgun")
+				{
+					Host::SetBaseStringSettingValue("USB1", "Type", "guncon2");
+					Host::SetBaseStringSettingValue("USB2", "Type", "guncon2");
+					ACJV::SetMode(JVS_MODE::LIGHTGUN);
+					Console.WriteLn(Color_Green, "ACGAME: jvsmode=lightgun -> GunCon2 on USB1+USB2");
+				}
+				else
+				{
+					Host::SetBaseStringSettingValue("USB1", "Type", "None");
+					Host::SetBaseStringSettingValue("USB2", "Type", "None");
+					ACJV::SetMode(JVS_MODE::DEFAULT);
+				}
+
 				ACATA::SetEnv(basedir, s_imgname, s_acmedia);
 				int R;
 				if ((R = ACATA::TH::IO_OpenImage())!=0) {
