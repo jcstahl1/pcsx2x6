@@ -67,6 +67,6 @@
     <release version="@GIT_VERSION@" date="@GIT_DATE@" />
   </releases>
   <custom>
-    <value key="flathub::manifest">https://raw.githubusercontent.com/PCSX2/pcsx2/@GIT_HASH@/.github/workflows/scripts/linux/flatpak/net.pcsx2.PCSX2.json</value>
+    <value key="flathub::manifest">https://raw.githubusercontent.com/PCSX2/pcsx2/@GIT_HASH@/.github/workflows/scripts/linux/flatpak/net.PS2Homebrew-arcade.PCSX2x6.json</value>
   </custom>
 </component>
