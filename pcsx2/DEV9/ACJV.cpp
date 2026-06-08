@@ -109,12 +109,12 @@ static constexpr const std::array<InputBindingInfo, 12> s_jvs_p2_button_bindings
 }};
 
 // Per-layout face button GenericInputBinding overrides (BTN3-6 only).
-// BTN1=Square, BTN2=Triangle are universal. Indexed by (FightingLayout - 1).
+// BTN1=Square, BTN2=Triangle are universal. Indexed by FightingLayout enum value.
 static constexpr GenericInputBinding s_fighting_face_buttons[][4] = {
 	// BTN3,                        BTN4,                       BTN5,                       BTN6
 	{GenericInputBinding::Unknown, GenericInputBinding::Cross,  GenericInputBinding::Circle, GenericInputBinding::Unknown}, // TEKKEN
 	{GenericInputBinding::Cross,   GenericInputBinding::Circle, GenericInputBinding::Unknown,GenericInputBinding::Unknown}, // STANDARD
-	{GenericInputBinding::Cross,   GenericInputBinding::Circle, GenericInputBinding::L1,     GenericInputBinding::R1},      // SIX_BUTTON
+	{GenericInputBinding::L1,      GenericInputBinding::Cross,  GenericInputBinding::Circle, GenericInputBinding::R1},      // SIX_BUTTON
 };
 
 static std::array<InputBindingInfo, 12> s_active_p1_bindings;
