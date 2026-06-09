@@ -215,7 +215,7 @@ jobs:
         run: |
           TAG_VAL=${{needs.cut-release.outputs.new_tag}}
           echo "TAG_VAL=${TAG_VAL}"
-          gh release edit ${TAG_VAL} --draft=true --repo PS2Homebrew-arcade/pcsx2x6
+          gh release edit ${TAG_VAL} --draft=false --repo PS2Homebrew-arcade/pcsx2x6
 
       - uses: actions/setup-node@v6
         with:
