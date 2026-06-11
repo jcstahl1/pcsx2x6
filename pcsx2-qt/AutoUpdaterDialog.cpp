@@ -63,7 +63,7 @@ static constexpr u32 HTTP_POLL_INTERVAL = 10;
 #define UPDATE_ADDITIONAL_TAGS "SSE4"
 #endif
 
-#define LATEST_RELEASE_URL "https://ps2homebrew-arcade.github.io/pcsx2x6/api/%1.json"
+#define LATEST_RELEASE_URL "https://raw.githubusercontent.com/PS2Homebrew-arcade/pcsx2x6/refs/heads/gh_pages/docs/api/%1.json"
 #define CHANGES_URL "https://api.github.com/repos/PS2Homebrew-arcade/pcsx2x6/compare/%1...%2"
 
 // Available release channels.
