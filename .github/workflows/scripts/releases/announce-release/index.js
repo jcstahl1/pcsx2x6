@@ -61,7 +61,6 @@ if (!releaseInfo.prerelease) {
 
 // Publish Webhook
 const embed = new MessageEmbed()
-  .setContent()
   .setColor('#FF0000')
   .setTitle('New PCSX2x6 Nightly Build Available!')
   .setDescription("To download the latest or previous builds, [visit the official downloads page](https://ps2homebrew-arcade.github.io/pcsx2x6/).")
