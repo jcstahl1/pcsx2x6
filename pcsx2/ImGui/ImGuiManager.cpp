@@ -61,6 +61,7 @@ namespace ImGuiManager
 		float opacity = 1.0f;
 		float scale = 1.0f;
 		bool enabled = false;
+		BezelFitMode fit_mode = BezelFitMode::Stretch;
 	};
 
 	static void UpdateScale();
@@ -84,7 +85,7 @@ namespace ImGuiManager
 	static void CreateBezelOverlayTexture();
 	static void UpdateBezelOverlayTexture();
 	static void DestroyBezelOverlayTexture();
-	static void DrawBezelOverlay();
+	static ImVec2 CalculateBezelOverlaySize(float image_width, float image_height);
 } // namespace ImGuiManager
 
 static float s_global_scale = 1.0f;
@@ -303,9 +304,6 @@ void ImGuiManager::UpdateScale()
 			sc.extent_y = std::ceil(static_cast<float>(sc.texture->GetHeight()) * sc.scale * s_global_scale) / 2.0f;
 		}
 	}
-
-	if (s_bezel_overlay.texture)
-		UpdateBezelOverlayTexture();
 
 	ImGuiFullscreen::UpdateFontScale();
 
@@ -1326,16 +1324,56 @@ void ImGuiManager::DestroyBezelOverlayTexture()
 	s_bezel_overlay.texture.reset();
 }
 
+ImVec2 ImGuiManager::CalculateBezelOverlaySize(float image_width, float image_height)
+{
+	const float window_width = ImGuiManager::GetWindowWidth();
+	const float window_height = ImGuiManager::GetWindowHeight();
+
+	if (window_width <= 0.0f || window_height <= 0.0f || image_width <= 0.0f || image_height <= 0.0f)
+		return ImVec2(0.0f, 0.0f);
+
+	switch (s_bezel_overlay.fit_mode)
+	{
+		case BezelFitMode::Contain:
+		{
+			const float fit_scale = std::min(window_width / image_width, window_height / image_height);
+			return ImVec2(image_width * fit_scale * s_bezel_overlay.scale, image_height * fit_scale * s_bezel_overlay.scale);
+		}
+
+		case BezelFitMode::Cover:
+		{
+			const float fit_scale = std::max(window_width / image_width, window_height / image_height);
+			return ImVec2(image_width * fit_scale * s_bezel_overlay.scale, image_height * fit_scale * s_bezel_overlay.scale);
+		}
+
+		case BezelFitMode::Stretch:
+		default:
+			return ImVec2(window_width * s_bezel_overlay.scale, window_height * s_bezel_overlay.scale);
+	}
+}
+
 void ImGuiManager::DrawBezelOverlay()
 {
-	if (!s_bezel_overlay.enabled || !s_bezel_overlay.texture)
+	if (!s_bezel_overlay.enabled || !s_bezel_overlay.texture || s_bezel_overlay.opacity <= 0.0f)
+		return;
+
+	const float texture_width = static_cast<float>(s_bezel_overlay.texture->GetWidth());
+	const float texture_height = static_cast<float>(s_bezel_overlay.texture->GetHeight());
+
+	const ImVec2 size = CalculateBezelOverlaySize(texture_width, texture_height);
+	if (size.x <= 0.0f || size.y <= 0.0f)
 		return;
 
 	const float window_width = ImGuiManager::GetWindowWidth();
 	const float window_height = ImGuiManager::GetWindowHeight();
 
-	if (window_width <= 0.0f || window_height <= 0.0f)
-		return;
+	const ImVec2 min(
+		std::floor((window_width - size.x) * 0.5f),
+		std::floor((window_height - size.y) * 0.5f));
+
+	const ImVec2 max(
+		std::floor(min.x + size.x),
+		std::floor(min.y + size.y));
 
 	const u32 alpha = static_cast<u32>(std::clamp(s_bezel_overlay.opacity, 0.0f, 1.0f) * 255.0f);
 	const u32 color = IM_COL32(255, 255, 255, alpha);
@@ -1344,8 +1382,8 @@ void ImGuiManager::DrawBezelOverlay()
 
 	dl->AddImage(
 		reinterpret_cast<ImTextureID>(s_bezel_overlay.texture.get()->GetNativeHandle()),
-		ImVec2(0.0f, 0.0f),
-		ImVec2(window_width, window_height),
+		min,
+		max,
 		ImVec2(0.0f, 0.0f),
 		ImVec2(1.0f, 1.0f),
 		color);
@@ -1415,15 +1453,24 @@ void ImGuiManager::SetSoftwareCursorPosition(u32 index, float pos_x, float pos_y
 	sc.pos.second = pos_y;
 }
 
-void ImGuiManager::SetBezelOverlay(std::string image_path, float opacity, float scale)
+void ImGuiManager::SetBezelOverlay(bool enabled, std::string image_path, float opacity, float scale, BezelFitMode fit_mode)
 {
-	MTGS::RunOnGSThread([image_path = std::move(image_path), opacity, scale]() mutable {
+	MTGS::RunOnGSThread([enabled, image_path = std::move(image_path), opacity, scale, fit_mode]() mutable {
+		const std::string old_path = s_bezel_overlay.image_path;
+
+		s_bezel_overlay.enabled = enabled;
 		s_bezel_overlay.image_path = std::move(image_path);
 		s_bezel_overlay.opacity = std::clamp(opacity, 0.0f, 1.0f);
 		s_bezel_overlay.scale = std::max(scale, 0.01f);
-		s_bezel_overlay.enabled = !s_bezel_overlay.image_path.empty();
+		s_bezel_overlay.fit_mode = fit_mode;
 
-		if (MTGS::IsOpen())
+		if (!s_bezel_overlay.enabled || s_bezel_overlay.image_path.empty())
+		{
+			s_bezel_overlay.texture.reset();
+			return;
+		}
+
+		if (MTGS::IsOpen() && (old_path != s_bezel_overlay.image_path || !s_bezel_overlay.texture))
 			UpdateBezelOverlayTexture();
 	});
 }
@@ -1434,6 +1481,16 @@ void ImGuiManager::ClearBezelOverlay()
 		s_bezel_overlay.enabled = false;
 		s_bezel_overlay.image_path.clear();
 		s_bezel_overlay.texture.reset();
+	});
+}
+
+void ImGuiManager::ReloadBezelOverlay()
+{
+	MTGS::RunOnGSThread([] {
+		if (!s_bezel_overlay.enabled || s_bezel_overlay.image_path.empty())
+			return;
+
+		UpdateBezelOverlayTexture();
 	});
 }
 
