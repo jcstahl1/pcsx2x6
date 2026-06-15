@@ -30,6 +30,7 @@
 #include "imgui_internal.h"
 #include "common/Image.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <deque>
@@ -53,6 +54,15 @@ namespace ImGuiManager
 		std::pair<float, float> pos;
 	};
 
+	struct BezelOverlay
+	{
+		std::string image_path;
+		std::unique_ptr<GSTexture> texture;
+		float opacity = 1.0f;
+		float scale = 1.0f;
+		bool enabled = false;
+	};
+
 	static void UpdateScale();
 	static void SetStyle();
 	static void SetKeyMap();
@@ -71,6 +81,10 @@ namespace ImGuiManager
 	static void DestroySoftwareCursorTextures();
 	static void DrawSoftwareCursor(const SoftwareCursor& sc, const std::pair<float, float>& pos);
 	static void DrawSoftwareCursors();
+	static void CreateBezelOverlayTexture();
+	static void UpdateBezelOverlayTexture();
+	static void DestroyBezelOverlayTexture();
+	static void DrawBezelOverlay();
 } // namespace ImGuiManager
 
 static float s_global_scale = 1.0f;
@@ -111,6 +125,7 @@ static bool s_fullscreen_ui_was_initialized = false;
 static bool s_scale_changed = false;
 
 static std::array<ImGuiManager::SoftwareCursor, InputManager::MAX_SOFTWARE_CURSORS> s_software_cursors = {};
+static ImGuiManager::BezelOverlay s_bezel_overlay = {};
 
 void ImGuiManager::SetFonts(std::vector<FontInfo> info)
 {
@@ -183,6 +198,7 @@ bool ImGuiManager::Initialize()
 		InitializeFullscreenUI();
 
 	CreateSoftwareCursorTextures();
+	CreateBezelOverlayTexture();
 	return true;
 }
 
@@ -194,6 +210,7 @@ bool ImGuiManager::InitializeFullscreenUI()
 
 void ImGuiManager::Shutdown(bool clear_state)
 {
+	DestroyBezelOverlayTexture();
 	DestroySoftwareCursorTextures();
 
 	FullscreenUI::Shutdown(clear_state);
@@ -286,6 +303,9 @@ void ImGuiManager::UpdateScale()
 			sc.extent_y = std::ceil(static_cast<float>(sc.texture->GetHeight()) * sc.scale * s_global_scale) / 2.0f;
 		}
 	}
+
+	if (s_bezel_overlay.texture)
+		UpdateBezelOverlayTexture();
 
 	ImGuiFullscreen::UpdateFontScale();
 
@@ -1027,7 +1047,10 @@ void ImGuiManager::RenderOSD()
 
 	// Don't draw OSD when we're just running big picture.
 	if (VMManager::HasValidVM())
+	{
+		DrawBezelOverlay();
 		RenderOverlays();
+	}
 
 	const Common::Timer::Value current_time = Common::Timer::GetCurrentValue();
 	AcquirePendingOSDMessages(current_time);
@@ -1253,6 +1276,81 @@ void ImGuiManager::UpdateSoftwareCursorTexture(u32 index)
 	sc.extent_y = std::ceil(static_cast<float>(image.GetHeight()) * sc.scale * s_global_scale) / 2.0f;
 }
 
+void ImGuiManager::CreateBezelOverlayTexture()
+{
+	if (!s_bezel_overlay.enabled || s_bezel_overlay.image_path.empty())
+		return;
+
+	UpdateBezelOverlayTexture();
+}
+
+void ImGuiManager::UpdateBezelOverlayTexture()
+{
+	if (!g_gs_device)
+		return;
+
+	s_bezel_overlay.texture.reset();
+
+	if (!s_bezel_overlay.enabled || s_bezel_overlay.image_path.empty())
+		return;
+
+	RGBA8Image image;
+	if (!image.LoadFromFile(s_bezel_overlay.image_path.c_str()))
+	{
+		Console.Error("Failed to load bezel overlay image '%s'", s_bezel_overlay.image_path.c_str());
+		return;
+	}
+
+	s_bezel_overlay.texture = std::unique_ptr<GSTexture>(
+		g_gs_device->CreateTexture(image.GetWidth(), image.GetHeight(), 1, GSTexture::Format::Color));
+
+	if (!s_bezel_overlay.texture)
+	{
+		Console.Error(
+			"Failed to upload %ux%u bezel overlay image '%s'",
+			image.GetWidth(),
+			image.GetHeight(),
+			s_bezel_overlay.image_path.c_str());
+		return;
+	}
+
+	s_bezel_overlay.texture->Update(
+		GSVector4i(0, 0, image.GetWidth(), image.GetHeight()),
+		image.GetPixels(),
+		image.GetPitch(),
+		0);
+}
+
+void ImGuiManager::DestroyBezelOverlayTexture()
+{
+	s_bezel_overlay.texture.reset();
+}
+
+void ImGuiManager::DrawBezelOverlay()
+{
+	if (!s_bezel_overlay.enabled || !s_bezel_overlay.texture)
+		return;
+
+	const float window_width = ImGuiManager::GetWindowWidth();
+	const float window_height = ImGuiManager::GetWindowHeight();
+
+	if (window_width <= 0.0f || window_height <= 0.0f)
+		return;
+
+	const u32 alpha = static_cast<u32>(std::clamp(s_bezel_overlay.opacity, 0.0f, 1.0f) * 255.0f);
+	const u32 color = IM_COL32(255, 255, 255, alpha);
+
+	ImDrawList* dl = ImGui::GetBackgroundDrawList();
+
+	dl->AddImage(
+		reinterpret_cast<ImTextureID>(s_bezel_overlay.texture.get()->GetNativeHandle()),
+		ImVec2(0.0f, 0.0f),
+		ImVec2(window_width, window_height),
+		ImVec2(0.0f, 0.0f),
+		ImVec2(1.0f, 1.0f),
+		color);
+}
+
 void ImGuiManager::DrawSoftwareCursor(const SoftwareCursor& sc, const std::pair<float, float>& pos)
 {
 	if (!sc.texture)
@@ -1315,6 +1413,28 @@ void ImGuiManager::SetSoftwareCursorPosition(u32 index, float pos_x, float pos_y
 	SoftwareCursor& sc = s_software_cursors[index];
 	sc.pos.first = pos_x;
 	sc.pos.second = pos_y;
+}
+
+void ImGuiManager::SetBezelOverlay(std::string image_path, float opacity, float scale)
+{
+	MTGS::RunOnGSThread([image_path = std::move(image_path), opacity, scale]() mutable {
+		s_bezel_overlay.image_path = std::move(image_path);
+		s_bezel_overlay.opacity = std::clamp(opacity, 0.0f, 1.0f);
+		s_bezel_overlay.scale = std::max(scale, 0.01f);
+		s_bezel_overlay.enabled = !s_bezel_overlay.image_path.empty();
+
+		if (MTGS::IsOpen())
+			UpdateBezelOverlayTexture();
+	});
+}
+
+void ImGuiManager::ClearBezelOverlay()
+{
+	MTGS::RunOnGSThread([] {
+		s_bezel_overlay.enabled = false;
+		s_bezel_overlay.image_path.clear();
+		s_bezel_overlay.texture.reset();
+	});
 }
 
 std::string ImGuiManager::StripIconCharacters(std::string_view str)
