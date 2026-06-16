@@ -140,12 +140,6 @@ namespace ImGuiManager
 	/// Sets the position of a software cursor, used when we have relative coordinates such as controllers.
 	void SetSoftwareCursorPosition(u32 index, float pos_x, float pos_y);
 
-	/// Sets an image for the global bezel overlay.
-	void SetBezelOverlay(std::string image_path, float opacity, float scale);
-
-	/// Clears the global bezel overlay.
-	void ClearBezelOverlay();
-
 	/// Strips icon characters from a string.
 	std::string StripIconCharacters(std::string_view str);
 } // namespace ImGuiManager

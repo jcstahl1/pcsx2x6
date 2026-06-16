@@ -89,6 +89,7 @@ namespace ImGuiManager
 } // namespace ImGuiManager
 
 static float s_global_scale = 1.0f;
+static bool s_bezel_draw_logged = false;
 
 static std::string s_font_path;
 
@@ -1284,6 +1285,11 @@ void ImGuiManager::CreateBezelOverlayTexture()
 
 void ImGuiManager::UpdateBezelOverlayTexture()
 {
+	Console.WriteLn("Bezel: UpdateBezelOverlayTexture g_gs_device=%s enabled=%s path='%s'",
+		g_gs_device ? "yes" : "no",
+		s_bezel_overlay.enabled ? "true" : "false",
+		s_bezel_overlay.image_path.c_str());
+
 	if (!g_gs_device)
 		return;
 
@@ -1298,6 +1304,8 @@ void ImGuiManager::UpdateBezelOverlayTexture()
 		Console.Error("Failed to load bezel overlay image '%s'", s_bezel_overlay.image_path.c_str());
 		return;
 	}
+
+	Console.WriteLn("Bezel: loaded image %ux%u", image.GetWidth(), image.GetHeight());
 
 	s_bezel_overlay.texture = std::unique_ptr<GSTexture>(
 		g_gs_device->CreateTexture(image.GetWidth(), image.GetHeight(), 1, GSTexture::Format::Color));
@@ -1317,6 +1325,8 @@ void ImGuiManager::UpdateBezelOverlayTexture()
 		image.GetPixels(),
 		image.GetPitch(),
 		0);
+
+	Console.WriteLn("Bezel: texture uploaded");
 }
 
 void ImGuiManager::DestroyBezelOverlayTexture()
@@ -1354,7 +1364,26 @@ ImVec2 ImGuiManager::CalculateBezelOverlaySize(float image_width, float image_he
 
 void ImGuiManager::DrawBezelOverlay()
 {
+	if (!s_bezel_draw_logged)
+	{
+		Console.WriteLn("Bezel: DrawBezelOverlay enabled=%s texture=%s opacity=%f window=%fx%f fullscreen=%s bigpicture=%s",
+			s_bezel_overlay.enabled ? "true" : "false",
+			s_bezel_overlay.texture ? "yes" : "no",
+			s_bezel_overlay.opacity,
+			ImGuiManager::GetWindowWidth(),
+			ImGuiManager::GetWindowHeight(),
+			Host::IsFullscreen() ? "true" : "false",
+			FullscreenUI::HasActiveWindow() ? "true" : "false");
+		s_bezel_draw_logged = true;
+	}
+
 	if (!s_bezel_overlay.enabled || !s_bezel_overlay.texture || s_bezel_overlay.opacity <= 0.0f)
+		return;
+
+	if (Host::IsFullscreen() && !EmuConfig.GS.BezelShowInFullscreen)
+		return;
+
+	if (FullscreenUI::HasActiveWindow() && !EmuConfig.GS.BezelShowInBigPicture)
 		return;
 
 	const float texture_width = static_cast<float>(s_bezel_overlay.texture->GetWidth());
@@ -1455,7 +1484,7 @@ void ImGuiManager::SetSoftwareCursorPosition(u32 index, float pos_x, float pos_y
 
 void ImGuiManager::SetBezelOverlay(bool enabled, std::string image_path, float opacity, float scale, BezelFitMode fit_mode)
 {
-	MTGS::RunOnGSThread([enabled, image_path = std::move(image_path), opacity, scale, fit_mode]() mutable {
+	auto update_state = [enabled, image_path = std::move(image_path), opacity, scale, fit_mode]() mutable {
 		const std::string old_path = s_bezel_overlay.image_path;
 
 		s_bezel_overlay.enabled = enabled;
@@ -1470,18 +1499,28 @@ void ImGuiManager::SetBezelOverlay(bool enabled, std::string image_path, float o
 			return;
 		}
 
-		if (MTGS::IsOpen() && (old_path != s_bezel_overlay.image_path || !s_bezel_overlay.texture))
+		if (g_gs_device && (old_path != s_bezel_overlay.image_path || !s_bezel_overlay.texture))
 			UpdateBezelOverlayTexture();
-	});
+	};
+
+	if (MTGS::IsOpen())
+		MTGS::RunOnGSThread(std::move(update_state));
+	else
+		update_state();
 }
 
 void ImGuiManager::ClearBezelOverlay()
 {
-	MTGS::RunOnGSThread([] {
+	auto clear_state = [] {
 		s_bezel_overlay.enabled = false;
 		s_bezel_overlay.image_path.clear();
 		s_bezel_overlay.texture.reset();
-	});
+	};
+
+	if (MTGS::IsOpen())
+		MTGS::RunOnGSThread(std::move(clear_state));
+	else
+		clear_state();
 }
 
 void ImGuiManager::ReloadBezelOverlay()
