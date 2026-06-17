@@ -301,7 +301,7 @@ NM00047:
   input: driving
 NM00048:
   name: Fate - Unlimited Codes
-  region: System256
+  region: System246
   bootprog: FTELOAD
   media: HDD
   input: button
