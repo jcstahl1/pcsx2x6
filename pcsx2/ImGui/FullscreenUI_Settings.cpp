@@ -2986,41 +2986,7 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 		"EmuCore/GS", "StretchY", 100, 10, 300, FSUI_CSTR("%d%%"));
 	DrawIntRectSetting(bsi, FSUI_ICONSTR(ICON_FA_CROP, "Crop"), FSUI_CSTR("Crops the image, while respecting aspect ratio."), "EmuCore/GS", "CropLeft", 0,
 		"CropTop", 0, "CropRight", 0, "CropBottom", 0, 0, 720, 1, FSUI_CSTR("%dpx"));
-
-	MenuHeading(FSUI_CSTR("Bezel Overlay"));
-
-	static constexpr const char* bezel_fit_mode_options[] = {
-		FSUI_NSTR("Fit"),
-		FSUI_NSTR("Fill"),
-		FSUI_NSTR("Stretch"),
-		FSUI_NSTR("Center"),
-	};
-
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_IMAGE, "Enable Bezel Overlay"),
-		FSUI_CSTR("Displays a custom global bezel image overlay for any game."),
-		"EmuCore/GS", "BezelEnabled", false);
-
-	DrawIntRangeSetting(bsi, FSUI_ICONSTR(ICON_FA_CIRCLE_HALF_STROKE, "Bezel Opacity"),
-		FSUI_CSTR("Controls the transparency of the bezel image."),
-		"EmuCore/GS", "BezelOpacity", 1.0f, 0.0f, 1.0f, "%.0f%%", 100.0f);
-
-	DrawIntRangeSetting(bsi, FSUI_ICONSTR(ICON_FA_EXPAND, "Bezel Scale"),
-		FSUI_CSTR("Scales the bezel image."),
-		"EmuCore/GS", "BezelScale", 100, 10, 500, FSUI_CSTR("%d%%"));
-
-	DrawIntListSetting(bsi, FSUI_ICONSTR(ICON_FA_UP_RIGHT_AND_DOWN_LEFT_FROM_CENTER, "Bezel Fit Mode"),
-		FSUI_CSTR("Controls how the bezel image is scaled relative to the emulator window."),
-		"EmuCore/GS", "BezelFitMode", static_cast<int>(GSBezelFitMode::Fit), bezel_fit_mode_options, std::size(bezel_fit_mode_options),
-		true);
-
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_DISPLAY, "Show in Fullscreen"),
-		FSUI_CSTR("Shows the bezel overlay while the emulator is fullscreen."),
-		"EmuCore/GS", "BezelShowInFullscreen", true);
-
-	DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_WINDOW_MAXIMIZE, "Show in Big Picture"),
-		FSUI_CSTR("Shows the bezel overlay while using Big Picture mode."),
-		"EmuCore/GS", "BezelShowInBigPicture", true);
-
+	
 	if (!IsEditingGameSettings(bsi))
 	{
 		DrawToggleSetting(bsi, FSUI_ICONSTR(ICON_FA_TV, "Enable Widescreen Patches"), FSUI_CSTR("Enables loading widescreen patches from pnach files."),
